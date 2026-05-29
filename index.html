@@ -1,312 +1,232 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jahangir IPTV Smart M3U8 Engine</title>
+    <title>M3U & M3U8 IPTV Link Checker & Player</title>
+    <!-- Tailwind CSS for UI -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video-js.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video.min.js"></script>
-
+    <!-- HLS.js for M3U8 Streaming -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
-        
-        .video-js { font-family: sans-serif !important; color: #fff !important; }
-        .video-js .vjs-big-play-button { background-color: rgba(99, 102, 241, 0.8) !important; border-radius: 50% !important; width: 2.5em !important; height: 2.5em !important; line-height: 2.5em !important; margin-top: -1.25em !important; margin-left: -1.25em !important; border: none !important; }
+        .channel-item:hover { background-color: #1e293b; }
+        .live { color: #22c55e; }
+        .dead { color: #ef4444; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col overflow-hidden select-none">
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen p-4">
 
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between shrink-0 gap-4 z-20">
-        <div class="flex items-center gap-3">
-            <i class="fa-solid fa-wand-magic-sparkles text-indigo-500 text-2xl"></i>
-            <h1 class="text-xl font-bold tracking-wide text-white">Smart <span class="text-indigo-400">IPTV Manager</span></h1>
-        </div>
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-400">M3U/M3U8 Link Checker & Player</h1>
+            <p class="text-gray-400 text-sm mt-1">M3U টেক্সট পেস্ট করুন, লাইভ চ্যানেল চেক করুন এবং প্লে বা ডাউনলোড করুন।</p>
+        </header>
 
-        <div class="flex items-center gap-3 flex-wrap">
-            <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/10">
-                <i class="fa-solid fa-file-import"></i> Upload M3U/M3U8
-                <input type="file" id="m3uUploader" accept=".m3u,.m3u8" class="hidden">
-            </label>
-            
-            <button onclick="deleteCurrentDeadChannel()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 text-xs font-bold px-4 py-2 rounded-lg transition-all flex items-center gap-2">
-                <i class="fa-solid fa-trash-can"></i> Delete Dead Channel
-            </button>
-
-            <button onclick="downloadCleanM3U()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/10">
-                <i class="fa-solid fa-cloud-arrow-down"></i> Download Clean M3U
-            </button>
-        </div>
-    </header>
-
-    <div class="flex flex-1 overflow-hidden relative">
-        
-        <aside class="w-52 bg-slate-900/90 border-r border-slate-800 flex flex-col shrink-0 z-10">
-            <div class="p-4 border-b border-slate-800">
-                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Categories</h2>
-            </div>
-            <div id="groupList" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-                <div class="text-xs text-slate-600 p-2 text-center">Upload file first</div>
-            </div>
-        </aside>
-
-        <div class="w-[28%] min-w-[280px] hidden md:flex flex-col bg-slate-950 border-r border-slate-800 p-4 overflow-hidden z-10">
-            <div class="flex items-center justify-between mb-4">
-                <h2 id="currentCategoryTitle" class="text-sm font-bold text-slate-300 flex items-center gap-2 truncate">
-                    <i class="fa-solid fa-layer-group text-indigo-400"></i> Channels
-                </h2>
-                <span id="channelCount" class="text-[11px] bg-slate-900 text-indigo-300 px-2 py-0.5 rounded border border-indigo-950 font-mono">0</span>
-            </div>
-            
-            <div id="channelsGrid" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 xl:grid-cols-2 gap-2 content-start pb-4">
-                <div class="col-span-full py-12 text-center text-slate-600 text-xs">
-                    <i class="fa-solid fa-file-code text-3xl mb-2 block text-slate-700"></i>
-                    Please upload an .m3u or .m3u8 playlist file to load channels.
-                </div>
-            </div>
-        </div>
-
-        <main class="flex-1 bg-black flex flex-col relative justify-center items-center overflow-hidden">
-            
-            <div id="channelOverlay" class="absolute top-6 left-6 bg-slate-900/80 backdrop-blur border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3 z-30 opacity-0 pointer-events-none transition-opacity duration-300 shadow-2xl">
-                <div class="text-xl font-black font-mono text-indigo-400" id="overlayNumber">00</div>
-                <div class="h-6 w-[1px] bg-slate-700"></div>
-                <div class="text-sm font-bold text-white" id="overlayName">Loading...</div>
-            </div>
-
-            <div class="w-full h-full flex items-center justify-center relative">
-                <div id="playerPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-4 text-center bg-gradient-to-b from-slate-900 to-slate-950 z-10">
-                    <div class="w-16 h-16 bg-indigo-600/10 border border-indigo-500/20 rounded-full flex items-center justify-center mb-4 shadow-xl">
-                        <i class="fa-solid fa-tv text-2xl text-indigo-400"></i>
-                    </div>
-                    <p class="text-sm font-bold text-slate-200">No Channel Active</p>
-                    <p class="text-xs text-slate-500 mt-1 max-w-xs">Upload your file, click any channel from the list, or use keyboard numbers to test streaming.</p>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Panel: Input & Status -->
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-[75vh]">
+                <h2 class="text-lg font-semibold mb-2 text-gray-300">M3U Playlist Input</h2>
+                <textarea id="m3uInput" class="w-full flex-grow p-3 bg-gray-900 border border-gray-700 rounded-lg text-sm font-mono focus:outline-none focus:border-blue-500 text-gray-300 resize-none" placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-name='Channel 1' tvg-logo='logo_url',Channel Name&#10;http://example.com/live.m3u8"></textarea>
+                
+                <div class="mt-4 flex gap-2">
+                    <button id="startCheckBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition" onclick="processAndCheckM3U()">Check Links</button>
+                    <button id="downloadBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition hidden" onclick="downloadValidM3U()">Download M3U</button>
                 </div>
                 
-                <video id="iptv-player" class="video-js vjs-default-skin w-full h-full object-contain" controls preload="auto"></video>
+                <div id="statusReport" class="mt-3 text-xs text-gray-400 hidden flex justify-between">
+                    <span>Total: <b id="totalCount">0</b></span>
+                    <span>Live: <b id="liveCount" class="text-green-400">0</b></span>
+                    <span>Dead: <b id="deadCount" class="text-red-400">0</b></span>
+                </div>
             </div>
 
-        </main>
+            <!-- Middle Panel: Filtered Channel List -->
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-[75vh]">
+                <h2 class="text-lg font-semibold mb-2 text-gray-300">Live Channels List</h2>
+                <div id="channelList" class="flex-grow overflow-y-auto space-y-2 pr-1 border border-gray-700 p-2 rounded-lg bg-gray-900">
+                    <p class="text-gray-500 text-center text-sm mt-10">কোনো চ্যানেল লোড করা হয়নি।</p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Video Player -->
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-[75vh]">
+                <h2 class="text-lg font-semibold mb-2 text-gray-300">IPTV Video Player</h2>
+                <div class="relative bg-black rounded-lg overflow-hidden flex items-center justify-center aspect-video mb-4">
+                    <video id="videoPlayer" controls class="w-full h-full hidden"></video>
+                    <div id="playerPlaceholder" class="text-gray-500 text-center text-sm p-4">
+                        তালিকা থেকে একটি লাইভ চ্যানেলে ক্লিক করুন প্লে করার জন্য।
+                    </div>
+                </div>
+                <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 flex-grow">
+                    <h3 class="text-sm font-semibold text-blue-400 mb-1">Now Playing:</h3>
+                    <p id="currentChannelName" class="text-base font-medium text-gray-200">None</p>
+                    <p id="currentChannelUrl" class="text-xs text-gray-500 break-all mt-2 font-mono">URL: N/A</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        let channels = [];
-        let selectedCategory = "All";
-        let activeChannelId = null;
-        let player;
+        let parsedChannels = [];
+        let validChannels = [];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Setup Video.js Player
-            player = videojs('iptv-player', {
-                html5: { vhs: { overrideNative: true } }
-            });
-
-            // Handle Broken Streams/Errors automatically
-            player.on('error', () => {
-                console.log("Stream failed to play.");
-            });
-
-            // Parser trigger on file upload
-            document.getElementById('m3uUploader').addEventListener('change', handleFileSelect);
-
-            // Remote Control Keybinds
-            document.addEventListener('keydown', (e) => {
-                const pressedKey = e.key;
-                const foundChannel = channels.find(ch => ch.number === pressedKey);
-                if (foundChannel) playChannel(foundChannel.id);
-            });
-        });
-
-        // 🛠️ Core M3U/M3U8 Text File Parser Engine
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                parseM3U(text);
-            };
-            reader.readAsText(file);
-        }
-
-        function parseM3U(data) {
-            const lines = data.split('\n');
-            channels = [];
-            let currentItem = null;
-            let chCounter = 1;
+        // M3U টেক্সট পার্স করার ফাংশন
+        function parseM3U(text) {
+            const lines = text.split('\n');
+            const channels = [];
+            let currentMeta = null;
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
+                if (!line) continue;
 
                 if (line.startsWith('#EXTINF:')) {
-                    currentItem = {};
-                    currentItem.id = chCounter;
-                    currentItem.number = String(chCounter);
+                    currentMeta = {
+                        rawMeta: line,
+                        name: 'Unknown Channel',
+                        logo: '',
+                        group: ''
+                    };
                     
-                    // Regex mapping to extract logo, group-title and name
-                    const logoMatch = line.match(/tvg-logo="([^"]+)"/);
-                    const groupMatch = line.match(/group-title="([^"]+)"/);
+                    // Name, Logo, and Group Extractor using RegEx
+                    const logoMatch = line.match(/tvg-logo="([^"]+)"/i);
+                    if (logoMatch) currentMeta.logo = logoMatch[1];
                     
-                    currentItem.logo = logoMatch ? logoMatch[1] : "";
-                    currentItem.group = groupMatch ? groupMatch[1] : "Uncategorized";
+                    const groupMatch = line.match(/group-title="([^"]+)"/i);
+                    if (groupMatch) currentMeta.group = groupMatch[1];
+
+                    const nameParts = line.split(',');
+                    if (nameParts.length > 1) {
+                        currentMeta.name = nameParts[nameParts.length - 1].trim();
+                    }
+                } else if (line.startsWith('http') && currentMeta) {
+                    currentMeta.url = line;
+                    channels.push(currentMeta);
+                    currentMeta = null;
+                }
+            }
+            return channels;
+        }
+
+        // প্রত্যেকটি লিঙ্ক অটো-চেক করার ফাংশন (CORS হ্যান্ডলিং সহ)
+        async function checkUrl(url) {
+            try {
+                // HEAD রিকোয়েস্ট দিয়ে চেক করা হচ্ছে যাতে ব্যান্ডউইথ কম লাগে
+                const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
+                return response.ok;
+            } catch (error) {
+                // অনেক সার্ভার HEAD ব্লক করলে GET দিয়ে শেষ চেষ্টা
+                try {
+                    const response = await fetch(url, { method: 'GET', mode: 'cors' });
+                    return response.ok;
+                } catch (e) {
+                    return false; // CORS ইস্যু বা লিংক ডেড হলে false দেবে
+                }
+            }
+        }
+
+        // মেইন প্রসেস এবং চ্যাকার কন্ট্রোলার
+        async function processAndCheckM3U() {
+            const inputText = document.getElementById('m3uInput').value;
+            if (!inputText) return alert('দয়া করে M3U ডাটা পেস্ট করুন!');
+
+            parsedChannels = parseM3U(inputText);
+            if (parsedChannels.length === 0) return alert('কোনো বৈধ চ্যানেল লিঙ্ক পাওয়া যায়নি!');
+
+            const channelListDiv = document.getElementById('channelList');
+            const statusReport = document.getElementById('statusReport');
+            
+            channelListDiv.innerHTML = '<p class="text-blue-400 text-center text-sm p-4 animate-pulse">লিঙ্কগুলো চেক করা হচ্ছে, দয়া করে অপেক্ষা করুন...</p>';
+            statusReport.classList.remove('hidden');
+            
+            document.getElementById('totalCount').innerText = parsedChannels.length;
+            let liveCount = 0;
+            let deadCount = 0;
+            validChannels = [];
+
+            channelListDiv.innerHTML = ''; // ক্লিয়ার করুন
+
+            for (let channel of parsedChannels) {
+                // অটোমেটিক লিঙ্ক স্ট্যাটাস চেক
+                const isLive = await checkUrl(channel.url);
+
+                if (isLive) {
+                    liveCount++;
+                    document.getElementById('liveCount').innerText = liveCount;
+                    validChannels.push(channel);
+
+                    // শুধুমাত্র লাইভ চ্যানেল তালিকায় যোগ হবে
+                    const item = document.createElement('div');
+                    item.className = "channel-item flex items-center gap-3 p-2 bg-gray-800 rounded-lg cursor-pointer transition border border-gray-700";
+                    item.onclick = () => playVideo(channel.url, channel.name);
+
+                    const img = channel.logo ? `<img src="${channel.logo}" class="w-10 h-10 object-contain bg-black rounded" onerror="this.src='https://placehold.co/40x40?text=TV'">` : `<div class="w-10 h-10 bg-gray-700 rounded flex items-center justify-center text-xs font-bold">TV</div>`;
                     
-                    // Extract channel name (Text after final comma)
-                    const commaIndex = line.lastIndexOf(',');
-                    currentItem.name = commaIndex !== -1 ? line.substring(commaIndex + 1).trim() : "Unknown Channel";
-                    
-                } else if (line.startsWith('http') && currentItem) {
-                    currentItem.url = line;
-                    channels.push(currentItem);
-                    currentItem = null;
-                    chCounter++;
+                    item.innerHTML = `
+                        ${img}
+                        <div class="flex-grow min-w-0">
+                            <p class="text-sm font-semibold truncate text-gray-200">${channel.name}</p>
+                            <p class="text-xs text-gray-400 truncate">${channel.group || 'General'}</p>
+                        </div>
+                        <span class="text-xs font-bold live">● LIVE</span>
+                    `;
+                    channelListDiv.appendChild(item);
+                } else {
+                    deadCount++;
+                    document.getElementById('deadCount').innerText = deadCount;
                 }
             }
 
-            // Reset view to 'All'
-            selectedCategory = "All";
-            renderGroups();
-            renderChannels();
+            if (validChannels.length > 0) {
+                document.getElementById('downloadBtn').classList.remove('hidden');
+            } else {
+                channelListDiv.innerHTML = '<p class="text-red-400 text-center text-sm p-4">কোনো একটি লিঙ্কও সচল বা CORS সাপোর্টেড পাওয়া যায়নি।</p>';
+            }
         }
 
-        // Render Category Controls
-        function renderGroups() {
-            const groupList = document.getElementById('groupList');
-            if(channels.length === 0) {
-                groupList.innerHTML = `<div class="text-xs text-slate-600 p-2 text-center">No data</div>`;
-                return;
-            }
-
-            const groups = ['All', ...new Set(channels.map(ch => ch.group))];
+        // HLS প্লেয়ার ফাংশন (M3U8 সাপোর্ট)
+        function playVideo(url, name) {
+            const video = document.getElementById('videoPlayer');
+            const placeholder = document.getElementById('playerPlaceholder');
             
-            groupList.innerHTML = groups.map(group => {
-                const isActive = selectedCategory === group;
-                const icon = group === 'All' ? 'fa-list' : 'fa-folder';
-                const count = group === 'All' ? channels.length : channels.filter(c => c.group === group).length;
-                
-                return `
-                    <button onclick="filterCategory('${group}')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 text-left ${isActive ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}">
-                        <div class="flex items-center gap-2 truncate">
-                            <i class="fa-solid ${icon} w-3 text-center text-sm"></i>
-                            <span class="truncate">${group}</span>
-                        </div>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-950/50 text-slate-400">${count}</span>
-                    </button>
-                `;
-            }).join('');
-        }
+            placeholder.classList.add('hidden');
+            video.classList.remove('hidden');
 
-        function filterCategory(category) {
-            selectedCategory = category;
-            document.getElementById('currentCategoryTitle').innerHTML = `<i class="fa-solid fa-layer-group text-indigo-400"></i> ${category}`;
-            renderGroups();
-            renderChannels();
-        }
+            document.getElementById('currentChannelName').innerText = name;
+            document.getElementById('currentChannelUrl').innerText = `URL: ${url}`;
 
-        // Render Channels List
-        function renderChannels() {
-            const grid = document.getElementById('channelsGrid');
-            
-            const filteredChannels = channels.filter(channel => {
-                return selectedCategory === 'All' || channel.group === selectedCategory;
-            });
-
-            document.getElementById('channelCount').innerText = filteredChannels.length;
-
-            if(filteredChannels.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-8 text-center text-slate-600 text-xs">Empty Group</div>`;
-                return;
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // native support (যেমন Safari ব্রাউজার)
+                video.src = url;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            } else {
+                alert('আপনার ব্রাউজারটি HLS (.m3u8) স্ট্রিমিং সাপোর্ট করে না।');
             }
-
-            grid.innerHTML = filteredChannels.map(channel => {
-                const isCurrent = activeChannelId === channel.id;
-                return `
-                    <div onclick="playChannel(${channel.id})" class="bg-slate-900 border ${isCurrent ? 'border-indigo-500 bg-slate-850' : 'border-slate-800/80'} hover:border-indigo-500 rounded-xl p-2 flex items-center gap-2.5 cursor-pointer hover:bg-slate-850 transition-all duration-150 group">
-                        <div class="w-9 h-9 bg-slate-950 rounded-lg p-1 flex items-center justify-center shrink-0 border border-slate-800">
-                            <img src="${channel.logo}" alt="" onerror="this.src='https://placehold.co/80x80/1e293b/cbd5e1?text=TV'" class="max-w-full max-h-full object-contain">
-                        </div>
-                        <div class="overflow-hidden flex-1">
-                            <div class="text-[9px] font-mono text-indigo-400 font-bold">CH ${channel.number}</div>
-                            <h3 class="text-xs font-bold text-slate-200 truncate group-hover:text-white">${channel.name}</h3>
-                        </div>
-                    </div>
-                `;
-            }).join('');
         }
 
-        // Stream Controller
-        function playChannel(id) {
-            const channel = channels.find(c => c.id === id);
-            if(!channel) return;
+        // ফিল্টারড লাইভ চ্যানেলগুলো নতুন M3U ফাইল হিসেবে ডাউনলোডের ফাংশন
+        function downloadValidM3U() {
+            if (validChannels.length === 0) return;
 
-            activeChannelId = id;
-            document.getElementById('playerPlaceholder').classList.add('hidden');
-            
-            player.src({
-                src: channel.url,
-                type: 'application/x-mpegURL'
-            });
-            player.play();
-
-            // Highlight in list
-            renderChannels();
-
-            // Overlay Alert
-            const overlay = document.getElementById('channelOverlay');
-            document.getElementById('overlayNumber').innerText = channel.number.padStart(2, '0');
-            document.getElementById('overlayName').innerText = channel.name;
-            overlay.classList.remove('opacity-0');
-            overlay.classList.add('opacity-100');
-            setTimeout(() => overlay.classList.remove('opacity-100'), 2500);
-        }
-
-        // ❌ ফাংশন ১: অচল/মৃত চ্যানেলটি কারেন্ট লিস্ট থেকে ডিলিট করা
-        function deleteCurrentDeadChannel() {
-            if (!activeChannelId) {
-                alert("Please select and try playing a channel first!");
-                return;
-            }
-
-            // রানিং লিস্ট থেকে একটিভ অচল চ্যানেলটি ফিল্টার বা রিমুভ করা
-            channels = channels.filter(ch => ch.id !== activeChannelId);
-            activeChannelId = null;
-
-            // প্লেয়ার স্টপ ও রিসেট করা
-            player.reset();
-            document.getElementById('playerPlaceholder').classList.remove('hidden');
-
-            // ইউজার ইন্টারফেস আপডেট
-            renderGroups();
-            renderChannels();
-            alert("Dead channel removed from your temporary workspace!");
-        }
-
-        // 💾 ফাংশন ২: সচল চ্যানেলগুলো ফ্রেশ M3U ফাইল আকারে ডাউনলোড করা
-        function downloadCleanM3U() {
-            if (channels.length === 0) {
-                alert("No channels available to export!");
-                return;
-            }
-
-            // স্ট্যান্ডার্ড M3U মেটাডাটা ফরম্যাট জেনারেট করা
             let m3uContent = "#EXTM3U\n";
-            
-            channels.forEach(ch => {
-                m3uContent += `#EXTINF:-1 tvg-id="" tvg-logo="${ch.logo}" group-title="${ch.group}",${ch.name}\n`;
-                m3uContent += `${ch.url}\n`;
+            validChannels.forEach(ch => {
+                m3uContent += `${ch.rawMeta}\n${ch.url}\n`;
             });
 
-            // ফাইল ডাউনলোডার ট্রিগার
             const blob = new Blob([m3uContent], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Clean_Filtered_Playlist.m3u';
+            a.download = 'Live_Channels_Checked.m3u';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
