@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M3U & M3U8 IPTV Link Checker & Player</title>
-    <!-- Tailwind CSS for UI -->
+    <title>M3U & M3U8 IPTV File Checker & Player</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- HLS.js for M3U8 Streaming -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         .channel-item:hover { background-color: #1e293b; }
@@ -18,37 +16,47 @@
 
     <div class="max-w-7xl mx-auto">
         <header class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-blue-400">M3U/M3U8 Link Checker & Player</h1>
-            <p class="text-gray-400 text-sm mt-1">M3U টেক্সট পেস্ট করুন, লাইভ চ্যানেল চেক করুন এবং প্লে বা ডাউনলোড করুন।</p>
+            <h1 class="text-3xl font-bold text-blue-400">M3U/M3U8 File Checker & Player</h1>
+            <p class="text-gray-400 text-sm mt-1">M3U বা Text ফাইল আপলোড করুন, অটো-চেক করুন এবং প্লে বা ডাউনলোড করুন।</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left Panel: Input & Status -->
-            <div class="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-[75vh]">
-                <h2 class="text-lg font-semibold mb-2 text-gray-300">M3U Playlist Input</h2>
-                <textarea id="m3uInput" class="w-full flex-grow p-3 bg-gray-900 border border-gray-700 rounded-lg text-sm font-mono focus:outline-none focus:border-blue-500 text-gray-300 resize-none" placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-name='Channel 1' tvg-logo='logo_url',Channel Name&#10;http://example.com/live.m3u8"></textarea>
-                
-                <div class="mt-4 flex gap-2">
-                    <button id="startCheckBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition" onclick="processAndCheckM3U()">Check Links</button>
-                    <button id="downloadBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition hidden" onclick="downloadValidM3U()">Download M3U</button>
+            <div class="bg-gray-800 p-5 rounded-xl shadow-lg flex flex-col justify-between h-[75vh]">
+                <div>
+                    <h2 class="text-lg font-semibold mb-4 text-gray-300">Upload M3U / Text File</h2>
+                    
+                    <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition relative bg-gray-900">
+                        <input type="file" id="fileInput" accept=".m3u,.m3u8,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileUpload(this)">
+                        <div class="space-y-2">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <p id="fileNameDisplay" class="text-sm font-medium text-gray-300">ফাইল এখানে ড্রপ করুন অথবা ক্লিক করুন</p>
+                            <p class="text-xs text-gray-500">Supports: .m3u, .m3u8, .txt</p>
+                        </div>
+                    </div>
+
+                    <div id="statusReport" class="mt-6 p-4 bg-gray-900 border border-gray-700 rounded-lg text-sm hidden space-y-2">
+                        <p class="font-semibold text-gray-400 border-b border-gray-700 pb-1">Checking Progress:</p>
+                        <div class="flex justify-between"><span>Total Channels:</span> <b id="totalCount" class="text-blue-400">0</b></div>
+                        <div class="flex justify-between"><span>Live Channels:</span> <b id="liveCount" class="text-green-400">0</b></div>
+                        <div class="flex justify-between"><span>Dead / Blocked:</span> <b id="deadCount" class="text-red-400">0</b></div>
+                    </div>
                 </div>
                 
-                <div id="statusReport" class="mt-3 text-xs text-gray-400 hidden flex justify-between">
-                    <span>Total: <b id="totalCount">0</b></span>
-                    <span>Live: <b id="liveCount" class="text-green-400">0</b></span>
-                    <span>Dead: <b id="deadCount" class="text-red-400">0</b></span>
+                <div class="mt-4 flex gap-2">
+                    <button id="startCheckBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition disabled:opacity-50" onclick="processAndCheckM3U()" disabled>Start Checking</button>
+                    <button id="downloadBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-lg transition hidden" onclick="downloadValidM3U()">Download M3U</button>
                 </div>
             </div>
 
-            <!-- Middle Panel: Filtered Channel List -->
             <div class="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-[75vh]">
                 <h2 class="text-lg font-semibold mb-2 text-gray-300">Live Channels List</h2>
                 <div id="channelList" class="flex-grow overflow-y-auto space-y-2 pr-1 border border-gray-700 p-2 rounded-lg bg-gray-900">
-                    <p class="text-gray-500 text-center text-sm mt-10">কোনো চ্যানেল লোড করা হয়নি।</p>
+                    <p class="text-gray-500 text-center text-sm mt-10">কোনো ফাইল আপলোড করা হয়নি।</p>
                 </div>
             </div>
 
-            <!-- Right Panel: Video Player -->
             <div class="bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col h-[75vh]">
                 <h2 class="text-lg font-semibold mb-2 text-gray-300">IPTV Video Player</h2>
                 <div class="relative bg-black rounded-lg overflow-hidden flex items-center justify-center aspect-video mb-4">
@@ -67,8 +75,24 @@
     </div>
 
     <script>
+        let rawFileContent = "";
         let parsedChannels = [];
         let validChannels = [];
+
+        // ফাইল সিলেক্ট করার পর নাম এবং কনটেন্ট রিড করার ফাংশন
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            document.getElementById('fileNameDisplay').innerText = `Selected: ${file.name}`;
+            document.getElementById('startCheckBtn').disabled = false;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                rawFileContent = e.target.result;
+            };
+            reader.readAsText(file);
+        }
 
         // M3U টেক্সট পার্স করার ফাংশন
         function parseM3U(text) {
@@ -108,30 +132,27 @@
             return channels;
         }
 
-        // প্রত্যেকটি লিঙ্ক অটো-চেক করার ফাংশন (CORS হ্যান্ডলিং সহ)
+        // প্রত্যেকটি লিঙ্ক অটো-চেক করার ফাংশন
         async function checkUrl(url) {
             try {
-                // HEAD রিকোয়েস্ট দিয়ে চেক করা হচ্ছে যাতে ব্যান্ডউইথ কম লাগে
                 const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
                 return response.ok;
             } catch (error) {
-                // অনেক সার্ভার HEAD ব্লক করলে GET দিয়ে শেষ চেষ্টা
                 try {
                     const response = await fetch(url, { method: 'GET', mode: 'cors' });
                     return response.ok;
                 } catch (e) {
-                    return false; // CORS ইস্যু বা লিংক ডেড হলে false দেবে
+                    return false; 
                 }
             }
         }
 
         // মেইন প্রসেস এবং চ্যাকার কন্ট্রোলার
         async function processAndCheckM3U() {
-            const inputText = document.getElementById('m3uInput').value;
-            if (!inputText) return alert('দয়া করে M3U ডাটা পেস্ট করুন!');
+            if (!rawFileContent) return alert('দয়া করে প্রথমে একটি ফাইল আপলোড করুন!');
 
-            parsedChannels = parseM3U(inputText);
-            if (parsedChannels.length === 0) return alert('কোনো বৈধ চ্যানেল লিঙ্ক পাওয়া যায়নি!');
+            parsedChannels = parseM3U(rawFileContent);
+            if (parsedChannels.length === 0) return alert('ফাইলটিতে কোনো বৈধ IPTV চ্যানেল লিঙ্ক পাওয়া যায়নি!');
 
             const channelListDiv = document.getElementById('channelList');
             const statusReport = document.getElementById('statusReport');
@@ -144,10 +165,9 @@
             let deadCount = 0;
             validChannels = [];
 
-            channelListDiv.innerHTML = ''; // ক্লিয়ার করুন
+            channelListDiv.innerHTML = ''; 
 
             for (let channel of parsedChannels) {
-                // অটোমেটিক লিঙ্ক স্ট্যাটাস চেক
                 const isLive = await checkUrl(channel.url);
 
                 if (isLive) {
@@ -155,7 +175,7 @@
                     document.getElementById('liveCount').innerText = liveCount;
                     validChannels.push(channel);
 
-                    // শুধুমাত্র লাইভ চ্যানেল তালিকায় যোগ হবে
+                    // চ্যানেল লিস্টে অ্যাড করা
                     const item = document.createElement('div');
                     item.className = "channel-item flex items-center gap-3 p-2 bg-gray-800 rounded-lg cursor-pointer transition border border-gray-700";
                     item.onclick = () => playVideo(channel.url, channel.name);
@@ -184,7 +204,7 @@
             }
         }
 
-        // HLS প্লেয়ার ফাংশন (M3U8 সাপোর্ট)
+        // HLS প্লেয়ার ফাংশন
         function playVideo(url, name) {
             const video = document.getElementById('videoPlayer');
             const placeholder = document.getElementById('playerPlaceholder');
@@ -203,7 +223,6 @@
                     video.play();
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                // native support (যেমন Safari ব্রাউজার)
                 video.src = url;
                 video.addEventListener('loadedmetadata', function() {
                     video.play();
@@ -213,7 +232,7 @@
             }
         }
 
-        // ফিল্টারড লাইভ চ্যানেলগুলো নতুন M3U ফাইল হিসেবে ডাউনলোডের ফাংশন
+        // নতুন ফিল্টারড M3U ফাইল ডাউনলোড করার ফাংশন
         function downloadValidM3U() {
             if (validChannels.length === 0) return;
 
@@ -226,7 +245,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Live_Channels_Checked.m3u';
+            a.download = 'Live_Channels_Only.m3u';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
